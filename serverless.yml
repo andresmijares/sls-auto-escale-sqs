@@ -1,21 +1,43 @@
-service: serverless-introduction-to-sqs
+service: auto-scaling-sqs
 
 plugins: 
   - serverless-pseudo-parameters
 
 custom:
   stage: ${opt:stage, self:provider.stage}
+  prefix: sqs_session
+  region: ${self:provider.region}
+  table_users: ${self:custom.stage}_${self:custom.prefix}_user
+  table_orders: ${self:custom.stage}_${self:custom.prefix}_orders
+  sqs_orders: ${self:custom.stage}_${self:custom.prefix}_queue
+  sqs_url: https://sqs.#{AWS::Region}.amazonaws.com/#{AWS::AccountId}/${self:custom.sqs_orders}
+  event_broker_trigger: ${self:custom.stage}_${self:custom.prefix}_broker
 
 provider:
   name: aws
-  runtime: nodejs6.10
+  runtime: nodejs8.10
   iamRoleStatements:
     - Effect: Allow
       Action: dynamodb:GetItem
-      Resource: arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/${self:custom.stage}_users
+      Resource: arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/${self:custom.table_users}
     - Effect: Allow
-      Action: dynamodb:scan
-      Resource: arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/${self:custom.stage}_orders
+      Action: 
+        - dynamodb:scan
+        - dynamodb:PutItem
+      Resource: arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/${self:custom.table_orders}
+    - Effect: Allow
+      Action: 
+        - sqs:SendMessage
+        - sqs:ReceiveMessage
+        - sqs:GetQueueAttributes
+        - sqs:DeleteMessage
+      Resource: arn:aws:sqs:#{AWS::Region}:#{AWS::AccountId}:${self:custom.sqs_orders}
+    - Effect: Allow
+      Action: lambda:InvokeFunction
+      Resource: arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:*
+    - Effect: Allow
+      Action: events:PutRule
+      Resource: arn:aws:events:#{AWS::Region}:#{AWS::AccountId}:*
 
 functions:
   graphql:
@@ -25,15 +47,63 @@ functions:
            path: /graphql
            method: post
     environment:
-      tableOrders: ${self:custom.stage}_orders
-      tableUsers: ${self:custom.stage}_users
+      tableOrders: ${self:custom.table_orders}
+      tableUsers: ${self:custom.table_users}
+
+  process-order:
+    handler: functions/process-order.handler
+    events:
+      - stream:
+          startingPosition: LATEST 
+          batchSize: 3
+          type: dynamodb 
+          arn: 
+            Fn::GetAtt:
+              - ordersTable
+              - StreamArn
+    environment:
+      region: ${self:custom.region}
+      sqs_url: ${self:custom.sqs_url}
+
+  broker:
+    handler: functions/broker.handler
+    events:
+      - schedule: 
+          name: ${self:custom.event_broker_trigger}
+          rate: rate(1 minute)
+      - description: it runs each minute to poll data from the sqs queue
+
+    environment:
+      region: ${self:custom.region}
+      sqs_url: ${self:custom.sqs_url}
+      worker: ${self:service}-${self:custom.stage}-worker
+      jobs: 5
+      event_broker_trigger: ${self:custom.event_broker_trigger}
+
+  worker:
+    handler: functions/worker.handler
+    environment:
+      region: ${self:custom.region}
+      sqs_url: ${self:custom.sqs_url}
+      table_orders: ${self:custom.table_orders}
+
 
 resources:
   Resources:
+    QueueProcessOrder:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.sqs_orders}
+        MessageRetentionPeriod: 86400 # 1 day -> (min: 1m, max: 14days, default: 4days)
+        VisibilityTimeout: 240 # (min: 30sec , max: 12hours, default: 30sec)
+        MaximumMessageSize: 262144 # 256KiB
+        ReceiveMessageWaitTimeSeconds: 3 # (min:1 , max: 20,)
+      # more here https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-sqs-queues.html
+    
     ordersTable:
       Type: AWS::DynamoDB::Table 
       Properties:
-        TableName: ${self:custom.stage}_orders
+        TableName: ${self:custom.table_orders}
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
@@ -43,11 +113,13 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
+        StreamSpecification:
+          StreamViewType: NEW_IMAGE
     
     usersTable:
       Type: AWS::DynamoDB::Table 
       Properties:
-        TableName: ${self:custom.stage}_users
+        TableName: ${self:custom.table_users}
         AttributeDefinitions:
           - AttributeName: email
             AttributeType: S

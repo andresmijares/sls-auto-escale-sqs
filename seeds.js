@@ -10,7 +10,7 @@ const emails = [
   { 'email': 'lele@gmail.com', 'name': 'eleonora', 'lastName': 'lester' }
 ]
 
-const orders = Array.apply(null, { length: 10 }).map(n => ({
+const orders = Array.apply(null, { length: 25 }).map(n => ({
   id: chance.guid(),
   email: emails[Math.random() > 0.5 ? 0 : 1].email,
   comment: chance.sentence(),
@@ -25,25 +25,25 @@ let putReqs = orders.map(o => ({
 
 let req = {
   RequestItems: {
-    'dev_orders': putReqs
+    'dev_sqs_session_orders': putReqs
   }
 }
 
-let putReqsUsers = emails
-  .map(u => {
-    u.id = chance.guid()
-    return u
-  })
-  .map(user => ({
-    PutRequest: {
-      Item: user
-    }
-  }))
+// let putReqsUsers = emails
+//   .map(u => {
+//     u.id = chance.guid()
+//     return u
+//   })
+//   .map(user => ({
+//     PutRequest: {
+//       Item: user
+//     }
+//   }))
 
-let reqUsers = {
-  RequestItems: {
-    'dev_users': putReqsUsers
-  }
-}
+// let reqUsers = {
+//   RequestItems: {
+//     'dev_users': putReqsUsers
+//   }
+// }
 dynamodb.batchWrite(req).promise().then(() => console.log('saved orders!')).catch(e => console.log(e.message))
-dynamodb.batchWrite(reqUsers).promise().then(() => console.log('saved users!')).catch(e => console.log(e.message))
+// dynamodb.batchWrite(reqUsers).promise().then(() => console.log('saved users!')).catch(e => console.log(e.message))

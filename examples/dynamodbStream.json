@@ -1,0 +1,36 @@
+{
+  "Records": [
+    {
+      "eventID": "1",
+      "eventVersion": "1.0",
+      "dynamodb": {
+        "Keys": {
+          "id": {
+            "S": "2859fe4f-5d7c-5039-b789-4f6d1a4fcbeb"
+          }
+        },
+        "NewImage": {
+          "createdAt": {
+            "S": "1528291594329"
+          },
+          "id": {
+            "S": "2859fe4f-5d7c-5039-b789-4f6d1a4fcbeb"
+          },
+          "comment": {
+            "S": "some comment here"
+          },
+          "email": {
+            "S": "andy@mediocre.af"
+          }
+        },
+        "StreamViewType": "NEW_IMAGES",
+        "SequenceNumber": "111",
+        "SizeBytes": 26
+      },
+      "awsRegion": "us-west-2",
+      "eventName": "INSERT",
+      "eventSourceARN": "arn:aws:dynamodb:us-west-2:account-id:table/ExampleTableWithStream/stream/2015-06-27T00:48:05.899",
+      "eventSource": "aws:dynamodb"
+    }
+  ]
+}
