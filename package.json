@@ -1,0 +1,28 @@
+{
+  "name": "serverless-introduction-to-sqs",
+  "version": "1.0.0",
+  "description": "graphql serverless proof of concept",
+  "main": "index.js",
+  "scripts": {
+    "lint": "standard",
+    "test": "env TEST_DB=dev TEST_ROOT=https://8pbt7un0k8.execute-api.us-east-1.amazonaws.com/dev ./node_modules/.bin/mocha tests/ --reporter spec --timeout 15000 --retries 3"
+  },
+  "keywords": [],
+  "author": "Andres Mijares <andy@mediocre.af>",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.18.0",
+    "chance": "^1.0.16",
+    "co": "^4.6.0",
+    "graphql": "^0.13.2"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.248.1",
+    "chai": "^4.1.2",
+    "eslint": "^4.19.1",
+    "mocha": "^5.2.0",
+    "serverless": "^1.27.3",
+    "serverless-pseudo-parameters": "^1.6.0",
+    "standard": "^11.0.1"
+  }
+}
